@@ -1,0 +1,103 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getAuthLink() {
+      let path = /databases/$(database)/documents/auth_links/$(request.auth.uid);
+      return exists(path) ? get(path).data : null;
+    }
+
+    function isAdmin() {
+      let link = getAuthLink();
+      return isSignedIn() && link != null && link.role == 'admin';
+    }
+
+    function isSindico() {
+      let link = getAuthLink();
+      return isSignedIn() && link != null && (link.role == 'admin' || link.isSindico == true);
+    }
+
+    function getMyApartmentId() {
+      let link = getAuthLink();
+      return link != null ? link.apartmentId : 'NONE';
+    }
+
+    // Core Entities
+    
+    match /auth_links/{uid} {
+      allow read: if request.auth.uid == uid;
+      allow create: if isSignedIn() && request.auth.uid == uid;
+      allow update: if isSignedIn() && request.auth.uid == uid && 
+                   (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['apartmentId', 'role', 'isSindico', 'updatedAt']));
+    }
+
+    match /residents/{residentId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSindico();
+    }
+
+    match /apartments/{aptId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /unit_passwords/{aptNumber} {
+      allow get: if true; // Needed for login flow
+      allow list: if isAdmin();
+      allow create: if isSignedIn();
+      allow update: if isAdmin() || (isSignedIn() && resource.data.password == "");
+      allow delete: if isAdmin();
+    }
+
+    match /mural/{postId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSindico();
+    }
+
+    match /rules/{ruleId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSindico();
+    }
+
+    match /documents/{docId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSindico();
+    }
+
+    match /reservations/{resId} {
+      allow read: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.apartmentId == getMyApartmentId();
+      allow update, delete: if isSignedIn() && (isSindico() || resource.data.apartmentId == getMyApartmentId());
+    }
+
+    match /occurrences/{occId} {
+      allow read: if isSignedIn() && (isSindico() || resource.data.apartmentId == getMyApartmentId());
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.apartmentId == getMyApartmentId();
+      allow update: if isSignedIn() && (isSindico() || resource.data.apartmentId == getMyApartmentId());
+    }
+
+    match /chats/{chatId} {
+      allow read, write: if isSignedIn() && (isSindico() || chatId == getMyApartmentId());
+      
+      match /messages/{messageId} {
+        allow read, write: if isSignedIn() && (isSindico() || chatId == getMyApartmentId());
+      }
+    }
+
+    match /settings/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "entities": {
+    "Resident": {
+      "title": "Resident",
+      "description": "User profile for a resident or admin",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "apartmentId": { "type": "string" },
+        "role": { "type": "string", "enum": ["resident", "admin"] },
+        "phoneNumber": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "apartmentId", "role"]
+    },
+    "Apartment": {
+      "title": "Apartment",
+      "description": "Information about an apartment unit",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "number": { "type": "string" },
+        "block": { "type": "string" },
+        "floor": { "type": "string" }
+      },
+      "required": ["id", "number"]
+    },
+    "Reservation": {
+      "title": "Reservation",
+      "description": "Area reservation by a resident",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "areaId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "apartmentId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "areaId", "userId", "date", "startTime", "endTime", "status"]
+    },
+    "CommonArea": {
+      "title": "Common Area",
+      "description": "Reservable area in the condominium",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "capacity": { "type": "number" }
+      },
+      "required": ["id", "name"]
+    },
+    "Mural": {
+      "title": "Mural",
+      "description": "Bulletin board post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "category": { "type": "string" }
+      },
+      "required": ["id", "title", "content", "authorId", "createdAt"]
+    },
+    "Occurrence": {
+      "title": "Occurrence",
+      "description": "Resident occurrence report",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "apartmentId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["reported", "in_progress", "resolved"] },
+        "response": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "description", "status", "createdAt"]
+    },
+    "Rule": {
+      "title": "Rule",
+      "description": "Condominium rule or regulation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string" }
+      },
+      "required": ["id", "title", "content"]
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "Message in the chat with administration",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isAdmin": { "type": "boolean" }
+      },
+      "required": ["id", "senderId", "receiverId", "content", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/residents/{uid}": {
+      "schema": "Resident",
+      "description": "Collection of residents indexed by their auth UID"
+    },
+    "/apartments/{id}": {
+      "schema": "Apartment",
+      "description": "List of all apartments in the condominium"
+    },
+    "/reservations/{id}": {
+      "schema": "Reservation",
+      "description": "Area reservations"
+    },
+    "/commonAreas/{id}": {
+      "schema": "CommonArea",
+      "description": "Available areas for reservation"
+    },
+    "/mural/{id}": {
+      "schema": "Mural",
+      "description": "Bulletin board posts"
+    },
+    "/occurrences/{id}": {
+      "schema": "Occurrence",
+      "description": "Incident reports and complaints"
+    },
+    "/rules/{id}": {
+      "schema": "Rule",
+      "description": "Condominium rules and bylaws"
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Messages within a specific chat conversation"
+    }
+  }
+}
