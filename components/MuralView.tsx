@@ -10,7 +10,8 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export const MuralView: React.FC = () => {
-  const { residentData, isAdmin } = useAuth();
+  const { residentData, isAdmin, isSindico } = useAuth();
+  const isManagement = isAdmin || isSindico;
   const [notices, setNotices] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -26,7 +27,7 @@ export const MuralView: React.FC = () => {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!residentData || !isAdmin) return;
+    if (!residentData || !isManagement) return;
 
     setLoading(true);
     try {
@@ -46,7 +47,7 @@ export const MuralView: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!isAdmin) return;
+    if (!isManagement) return;
     if (confirm("Deseja apagar este aviso?")) {
       await deleteDoc(doc(db, 'mural', id));
     }
@@ -59,7 +60,7 @@ export const MuralView: React.FC = () => {
           <h1 className="text-3xl font-bold text-slate-900">Mural de Avisos</h1>
           <p className="text-slate-500 mt-2">Fique por dentro das novidades do condomínio.</p>
         </div>
-        {isAdmin && (
+        {isManagement && (
           <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-blue-100"
@@ -81,7 +82,7 @@ export const MuralView: React.FC = () => {
                 <span className="text-[10px] font-bold px-3 py-1 bg-blue-50 text-blue-600 rounded-full uppercase tracking-widest flex items-center gap-1">
                   <Tag size={10} /> {notice.category}
                 </span>
-                {isAdmin && (
+                {isManagement && (
                   <button 
                     onClick={() => handleDelete(notice.id)}
                     className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"

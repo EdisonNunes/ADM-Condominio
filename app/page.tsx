@@ -8,7 +8,6 @@ import { DashboardView } from '@/components/DashboardView';
 import { ReservationsView } from '@/components/ReservationsView';
 import { MuralView } from '@/components/MuralView';
 import { OccurrencesView } from '@/components/OccurrencesView';
-import { RulesView } from '@/components/RulesView';
 import { ChatView } from '@/components/ChatView';
 import { ResidentsView } from '@/components/ResidentsView';
 import { ApartmentsView } from '@/components/ApartmentsView';
@@ -43,7 +42,6 @@ export default function Home() {
       case 'reservations': return <ReservationsView />;
       case 'mural': return <MuralView />;
       case 'occurrences': return <OccurrencesView />;
-      case 'rules': return <RulesView />;
       case 'documents': return <DocumentsView />;
       case 'chat': return <ChatView />;
       case 'residents': return <ResidentsView />;

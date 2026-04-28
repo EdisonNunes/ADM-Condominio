@@ -23,7 +23,10 @@ service cloud.firestore {
 
     function isSindico() {
       let link = getAuthLink();
-      return isSignedIn() && link != null && (link.role == 'admin' || link.isSindico == true);
+      return isSignedIn() && (
+        (link != null && (link.role == 'admin' || link.isSindico == true)) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
     }
 
     function getMyApartmentId() {
@@ -34,10 +37,13 @@ service cloud.firestore {
     // Core Entities
     
     match /auth_links/{uid} {
-      allow read: if request.auth.uid == uid;
+      allow read: if isSignedIn();
       allow create: if isSignedIn() && request.auth.uid == uid;
-      allow update: if isSignedIn() && request.auth.uid == uid && 
-                   (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['apartmentId', 'role', 'isSindico', 'updatedAt']));
+      allow update: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /system/{docId} {
+      allow read: if true;
     }
 
     match /residents/{residentId} {
@@ -47,15 +53,15 @@ service cloud.firestore {
 
     match /apartments/{aptId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isSindico();
     }
 
     match /unit_passwords/{aptNumber} {
-      allow get: if true; // Needed for login flow
-      allow list: if isAdmin();
+      allow read: if true;
+      allow list: if isSindico();
       allow create: if isSignedIn();
-      allow update: if isAdmin() || (isSignedIn() && resource.data.password == "");
-      allow delete: if isAdmin();
+      allow update: if isSindico() || (isSignedIn() && (resource == null || resource.data.password == ""));
+      allow delete: if isSindico();
     }
 
     match /mural/{postId} {

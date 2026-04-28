@@ -32,9 +32,19 @@ export const DocumentsView: React.FC = () => {
   const [documents, setDocuments] = useState<any[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [form, setForm] = useState({ name: '', url: '', category: 'Regimento Interno' });
+  const [selectedCategory, setSelectedCategory] = useState('Todos');
+  const [form, setForm] = useState({ name: '', url: '', category: 'Regimento Interno', fileName: '' });
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const categories = [
+    'Todos',
+    'Regimento Interno',
+    'Atas de Reunião',
+    'Balancetes',
+    'Comunicados Oficiais',
+    'Outros'
+  ];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -51,8 +61,14 @@ export const DocumentsView: React.FC = () => {
       }
 
       const reader = new FileReader();
+      const fileName = file.name;
       reader.onload = (event) => {
-        setForm({ ...form, url: event.target?.result as string });
+        setForm({ 
+          ...form, 
+          url: event.target?.result as string,
+          fileName: fileName,
+          name: form.name || fileName.replace('.pdf', '')
+        });
       };
       reader.readAsDataURL(file);
     }
@@ -80,7 +96,7 @@ export const DocumentsView: React.FC = () => {
       });
       alert("Documento adicionado com sucesso!");
       setIsAdding(false);
-      setForm({ name: '', url: '', category: 'Regimento Interno' });
+      setForm({ name: '', url: '', category: 'Regimento Interno', fileName: '' });
     } catch (error) {
       console.error(error);
       alert("Erro ao adicionar documento.");
@@ -126,13 +142,15 @@ export const DocumentsView: React.FC = () => {
     }
   };
 
-  const filteredDocs = documents.filter(doc => 
-    doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    doc.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredDocs = documents.filter(doc => {
+    const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         doc.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'Todos' || doc.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
-    <div className="p-6 lg:p-10 space-y-10">
+    <div className="p-6 lg:p-10 space-y-8">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Documentos e Regras</h1>
@@ -148,15 +166,33 @@ export const DocumentsView: React.FC = () => {
         )}
       </header>
 
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-        <input 
-          type="text" 
-          placeholder="Buscar por nome ou categoria..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-12 pr-6 py-4 bg-white border border-slate-200 rounded-2xl outline-none focus:border-blue-500 transition-all shadow-sm"
-        />
+      <div className="space-y-6">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+          <input 
+            type="text" 
+            placeholder="Buscar por nome ou categoria..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-6 py-4 bg-white border border-slate-200 rounded-2xl outline-none focus:border-blue-500 transition-all shadow-sm"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                selectedCategory === cat 
+                  ? 'bg-slate-900 text-white shadow-md' 
+                  : 'bg-white text-slate-500 border border-slate-100 hover:bg-slate-50'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
       </div>
 
       <AnimatePresence>
@@ -199,10 +235,12 @@ export const DocumentsView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="w-full px-4 py-3 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center gap-2 text-slate-500 hover:border-blue-400 hover:text-blue-500 transition-all"
+                      className="w-full px-4 py-3 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center gap-2 text-slate-500 hover:border-blue-400 hover:text-blue-500 transition-all overflow-hidden"
                     >
-                      <Upload size={18} />
-                      {form.url.startsWith('data:') ? 'Arquivo Selecionado' : 'Selecionar arquivo do computador'}
+                      <Upload size={18} className="shrink-0" />
+                      <span className="truncate">
+                        {form.fileName || (form.url.startsWith('data:') ? 'Arquivo Selecionado' : 'Selecionar arquivo do computador')}
+                      </span>
                     </button>
                     
                     <div className="relative">
@@ -219,7 +257,7 @@ export const DocumentsView: React.FC = () => {
                       placeholder="https://exemplo.com/arquivo.pdf" 
                       className="w-full px-4 py-3 border border-slate-200 rounded-xl"
                       value={form.url.startsWith('data:') ? '' : form.url}
-                      onChange={(e) => setForm({...form, url: e.target.value})}
+                      onChange={(e) => setForm({...form, url: e.target.value, fileName: ''})}
                     />
                   </div>
                   <p className="text-[10px] text-slate-400 mt-2">Escolha um arquivo do computador ou insira o link direto.</p>

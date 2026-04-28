@@ -8,9 +8,11 @@ import { useAuth } from '@/hooks/use-auth';
 import { AlertCircle, Plus, Clock, CheckCircle2, MessageSquare, X, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 export const OccurrencesView: React.FC = () => {
-  const { residentData, isAdmin, isEstablished } = useAuth();
+  const { residentData, isAdmin, isSindico, isEstablished } = useAuth();
+  const isManagement = isAdmin || isSindico;
   const [occurrences, setOccurrences] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -20,7 +22,7 @@ export const OccurrencesView: React.FC = () => {
 
   useEffect(() => {
     if (!residentData || !isEstablished) return;
-    const q = isAdmin 
+    const q = isManagement 
       ? query(collection(db, 'occurrences'), orderBy('createdAt', 'desc'))
       : query(collection(db, 'occurrences'), where('userId', '==', residentData.id), orderBy('createdAt', 'desc'));
 
@@ -28,7 +30,7 @@ export const OccurrencesView: React.FC = () => {
       setOccurrences(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (err) => handleFirestoreError(err, OperationType.GET, 'occurrences'));
     return () => unsubscribe();
-  }, [residentData, isAdmin, isEstablished]);
+  }, [residentData, isManagement, isEstablished]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +57,7 @@ export const OccurrencesView: React.FC = () => {
   };
 
   const handleResponse = async (id: string) => {
-    if (!isAdmin || !adminResponse) return;
+    if (!isManagement || !adminResponse) return;
     setLoading(true);
     try {
       await updateDoc(doc(db, 'occurrences', id), {
@@ -78,7 +80,7 @@ export const OccurrencesView: React.FC = () => {
           <h1 className="text-3xl font-bold text-slate-900">Ocorrências</h1>
           <p className="text-slate-500 mt-2">Reporte incidentes e acompanhe o status da resolução.</p>
         </div>
-        {!isAdmin && (
+        {!isManagement && (
           <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-orange-100"
@@ -94,10 +96,10 @@ export const OccurrencesView: React.FC = () => {
             <motion.div
               layout
               key={occ.id}
-              onClick={() => isAdmin && occ.status !== 'resolved' && setSelectedOccurrence(occ)}
+              onClick={() => isManagement && occ.status !== 'resolved' && setSelectedOccurrence(occ)}
               className={cn(
                 "bg-white rounded-2xl border p-6 shadow-sm transition-all",
-                isAdmin && occ.status !== 'resolved' ? "cursor-pointer hover:border-blue-300" : "border-slate-100"
+                isManagement && occ.status !== 'resolved' ? "cursor-pointer hover:border-blue-300" : "border-slate-100"
               )}
             >
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -264,7 +266,3 @@ export const OccurrencesView: React.FC = () => {
     </div>
   );
 };
-
-function cn(...classes: string[]) {
-  return classes.filter(Boolean).join(' ');
-}

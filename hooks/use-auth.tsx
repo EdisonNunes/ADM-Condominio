@@ -211,7 +211,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     isEstablished,
     isAdmin: residentData?.role === 'admin',
-    isSindico: residentData?.isSindico === true,
+    isSindico: residentData?.role === 'admin' || residentData?.isSindico === true,
     login,
     setInitialPassword,
     logout

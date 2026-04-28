@@ -6,6 +6,7 @@ import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
 import { BookOpen, Shield, VolumeX, Car, Dog, Users, Trash2, Plus, Edit2, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const CATEGORIES: { [key: string]: any } = {
   'Silêncio': { icon: VolumeX, color: 'text-purple-500', bg: 'bg-purple-50' },
@@ -17,7 +18,8 @@ const CATEGORIES: { [key: string]: any } = {
 };
 
 export const RulesView: React.FC = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isSindico } = useAuth();
+  const isManagement = isAdmin || isSindico;
   const [rules, setRules] = useState<any[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -32,6 +34,7 @@ export const RulesView: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isManagement) return;
     try {
       if (editingId) {
         await updateDoc(doc(db, 'rules', editingId), form);
@@ -64,6 +67,7 @@ export const RulesView: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
+    if (!isManagement) return;
     if (confirm("Deseja apagar esta regra?")) {
       await deleteDoc(doc(db, 'rules', id));
     }
@@ -76,7 +80,7 @@ export const RulesView: React.FC = () => {
           <h1 className="text-3xl font-bold text-slate-900">Normas e Regras</h1>
           <p className="text-slate-500 mt-2">Manual de convivência e regimento interno.</p>
         </div>
-        {isAdmin && (
+        {isManagement && (
           <button
             onClick={() => setIsAdding(true)}
             className="p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
@@ -146,7 +150,7 @@ export const RulesView: React.FC = () => {
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{rule.category}</span>
-                    {isAdmin && (
+                    {isManagement && (
                       <div className="flex items-center gap-2">
                         <button 
                           onClick={() => startEdit(rule)} 
@@ -181,7 +185,3 @@ export const RulesView: React.FC = () => {
     </div>
   );
 };
-
-function cn(...classes: string[]) {
-  return classes.filter(Boolean).join(' ');
-}

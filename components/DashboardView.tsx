@@ -158,17 +158,6 @@ export const DashboardView: React.FC<{ setActiveTab: (tab: string) => void }> = 
               )}
             </div>
           </section>
-
-          <section className="bg-gradient-to-br from-indigo-900 to-slate-900 p-6 rounded-3xl text-white shadow-xl">
-            <h2 className="text-lg font-bold mb-4">Regras do Condomínio</h2>
-            <p className="text-indigo-200 text-sm mb-6">Mantenha a harmonia. Consulte o guia rápido de convivência.</p>
-            <button 
-              onClick={() => setActiveTab('documents')}
-              className="px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl text-sm font-bold transition-all inline-flex items-center gap-2"
-            >
-              Consultar <ArrowRight size={16} />
-            </button>
-          </section>
         </div>
       </div>
     </div>
