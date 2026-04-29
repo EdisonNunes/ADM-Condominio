@@ -54,6 +54,10 @@ export const SettingsView: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 200 * 1024) {
+        alert("O arquivo é muito grande. O limite recomendado é de 200KB.");
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setCondoLogo(reader.result as string);
@@ -170,33 +174,55 @@ export const SettingsView: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-4">
                     <label className="text-sm font-bold text-slate-700">Visualização Atual</label>
-                    <div className="h-32 rounded-2xl bg-slate-50 border border-dashed border-slate-200 flex items-center justify-center overflow-hidden">
+                    <div className="h-40 rounded-2xl bg-slate-50 border border-dashed border-slate-200 flex items-center justify-center p-4 overflow-hidden relative group">
                       {condoLogo ? (
-                        <img src={condoLogo} alt="Logo" className="max-h-full object-contain" />
+                        <img 
+                          src={condoLogo} 
+                          alt="Logo Preview" 
+                          className="max-w-full max-h-full object-contain drop-shadow-sm" 
+                          referrerPolicy="no-referrer"
+                        />
                       ) : (
-                        <h1 className="text-2xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                           {condoName}
-                        </h1>
+                        <div className="text-center">
+                          <ImageIcon size={32} className="mx-auto text-slate-300 mb-2" />
+                          <p className="text-xs text-slate-400 font-medium tracking-tight uppercase">Sem Logotipo</p>
+                        </div>
                       )}
                     </div>
+                    
+                    <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl">
+                      <div className="flex gap-3">
+                        <AlertCircle size={18} className="text-amber-500 shrink-0" />
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-amber-800 uppercase tracking-wider">Limitações e Recomendações</p>
+                          <ul className="text-[11px] text-amber-700 space-y-1 list-disc pl-3 leading-relaxed">
+                            <li><strong>Formato:</strong> Use preferencialmente <strong>PNG com transparência</strong>.</li>
+                            <li><strong>Proporção:</strong> Logos horizontais (formato retangular) funcionam melhor.</li>
+                            <li><strong>Tamanho:</strong> Limite de <strong>200KB</strong> para garantir performance.</li>
+                            <li><strong>Resolução:</strong> Recomendado 400x120 pixels.</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="flex items-center gap-2">
                        <input 
                          type="file" 
                          id="logo-upload" 
                          className="hidden" 
-                         accept="image/*"
+                         accept="image/png, image/jpeg, image/webp"
                          onChange={handleFileChange}
                        />
                        <label 
                          htmlFor="logo-upload"
-                         className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold cursor-pointer hover:bg-slate-200 transition-all"
+                         className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl text-xs font-bold cursor-pointer hover:bg-blue-100 transition-all font-sans"
                        >
                          <ImageIcon size={14} /> Selecionar Imagem
                        </label>
                        {condoLogo && (
                          <button 
                            onClick={() => setCondoLogo(null)}
-                           className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all"
+                           className="px-4 py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-xs font-bold hover:bg-red-100 transition-all font-sans"
                          >
                            Remover
                          </button>

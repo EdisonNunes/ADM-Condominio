@@ -35,6 +35,7 @@ export const DocumentsView: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [form, setForm] = useState({ name: '', url: '', category: 'Regimento Interno', fileName: '' });
   const [isUploading, setIsUploading] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ id: string, name: string } | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const categories = [
@@ -105,14 +106,18 @@ export const DocumentsView: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Deseja remover este documento?")) {
-      try {
-        await deleteDoc(doc(db, 'documents', id));
-      } catch (error) {
-        console.error(error);
-        alert("Erro ao remover documento.");
-      }
+  const handleDelete = (id: string, name: string) => {
+    setDeleteConfirmation({ id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmation) return;
+    try {
+      await deleteDoc(doc(db, 'documents', deleteConfirmation.id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `documents/${deleteConfirmation.id}`);
+    } finally {
+      setDeleteConfirmation(null);
     }
   };
 
@@ -195,7 +200,47 @@ export const DocumentsView: React.FC = () => {
         </div>
       </div>
 
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
+        {deleteConfirmation && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+              onClick={() => setDeleteConfirmation(null)}
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-white p-8 rounded-3xl w-full max-w-sm shadow-2xl text-center"
+            >
+              <div className="h-16 w-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+                <Trash2 size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Remover Documento</h3>
+              <p className="text-slate-500 text-sm mb-8">
+                Tem certeza que deseja remover o documento <strong>{deleteConfirmation.name}</strong>? Esta ação não pode ser desfeita.
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setDeleteConfirmation(null)}
+                  className="flex-1 py-3 px-4 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-all font-sans"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={confirmDelete}
+                  className="flex-1 py-3 px-4 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all font-sans"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
         {isAdding && (
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
@@ -306,7 +351,7 @@ export const DocumentsView: React.FC = () => {
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{document.category}</span>
                     {(isSindico || isAdmin) && (
                       <button 
-                        onClick={() => handleDelete(document.id)}
+                        onClick={() => handleDelete(document.id, document.name)}
                         className="text-slate-300 hover:text-red-500 transition-colors"
                       >
                         <Trash2 size={16} />

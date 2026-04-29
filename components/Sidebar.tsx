@@ -116,7 +116,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
             className="flex flex-col items-center w-full px-2 pt-6 pb-2"
           >
             {branding.logo ? (
-              <img src={branding.logo} alt="Logo" className="h-16 w-auto object-contain mb-3" />
+              <div className="w-full flex justify-center mb-3">
+                <img 
+                  src={branding.logo} 
+                  alt="Logo" 
+                  className="w-full h-auto max-h-24 object-contain" 
+                  referrerPolicy="no-referrer"
+                />
+              </div>
             ) : (
               <LayoutDashboard size={36} className="text-blue-600 mb-3" />
             )}
@@ -125,9 +132,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
             </h1>
           </motion.div>
         ) : (
-          <div className="flex items-center justify-center h-10 w-full mt-4">
+          <div className="flex items-center justify-center h-12 w-full mt-4 p-1">
             {branding.logo ? (
-              <img src={branding.logo} alt="Logo" className="h-8 w-auto object-contain" />
+              <img 
+                src={branding.logo} 
+                alt="Logo" 
+                className="w-full h-full object-contain" 
+                referrerPolicy="no-referrer"
+              />
             ) : (
               <LayoutDashboard size={24} className="text-blue-600" />
             )}

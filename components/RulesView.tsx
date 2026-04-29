@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
@@ -24,6 +24,7 @@ export const RulesView: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ title: '', content: '', category: 'Geral' });
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ id: string, title: string } | null>(null);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'rules'), (snapshot) => {
@@ -66,10 +67,19 @@ export const RulesView: React.FC = () => {
     setIsAdding(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string, title: string) => {
     if (!isManagement) return;
-    if (confirm("Deseja apagar esta regra?")) {
-      await deleteDoc(doc(db, 'rules', id));
+    setDeleteConfirmation({ id, title });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmation) return;
+    try {
+      await deleteDoc(doc(db, 'rules', deleteConfirmation.id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `rules/${deleteConfirmation.id}`);
+    } finally {
+      setDeleteConfirmation(null);
     }
   };
 
@@ -160,7 +170,7 @@ export const RulesView: React.FC = () => {
                           <Edit2 size={16} />
                         </button>
                         <button 
-                          onClick={() => handleDelete(rule.id)} 
+                          onClick={() => handleDelete(rule.id, rule.title)} 
                           className="text-slate-300 hover:text-red-500 transition-colors"
                           title="Excluir"
                         >
@@ -182,6 +192,48 @@ export const RulesView: React.FC = () => {
           </div>
         )}
       </div>
+
+      <AnimatePresence mode="wait">
+        {deleteConfirmation && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+              onClick={() => setDeleteConfirmation(null)}
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-white p-8 rounded-3xl w-full max-w-sm shadow-2xl text-center"
+            >
+              <div className="h-16 w-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+                <Trash2 size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Excluir Regra</h3>
+              <p className="text-slate-500 text-sm mb-8">
+                Tem certeza que deseja excluir a regra <strong>{deleteConfirmation.title}</strong>? Esta ação não pode ser desfeita.
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setDeleteConfirmation(null)}
+                  className="flex-1 py-3 px-4 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-all font-sans"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={confirmDelete}
+                  className="flex-1 py-3 px-4 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all font-sans"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
