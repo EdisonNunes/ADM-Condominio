@@ -71,7 +71,7 @@ export const DashboardView: React.FC<{ setActiveTab: (tab: string) => void }> = 
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                <Megaphone size={20} className="text-blue-500" /> Mural de Avisos
+                <Megaphone size={20} className="text-blue-500" /> Avisos
               </h2>
               <button 
                 onClick={() => setActiveTab('mural')}
@@ -138,7 +138,7 @@ export const DashboardView: React.FC<{ setActiveTab: (tab: string) => void }> = 
                     </div>
                     <div className="text-[10px] text-slate-500 mt-1 flex items-center justify-between font-medium">
                       <div className="flex items-center gap-1">
-                        <CalendarDays size={10} /> {res.date} • {res.startTime}
+                        <CalendarDays size={10} /> {res.date}
                       </div>
 
                       {isSindico && res.status === 'pending' && (
