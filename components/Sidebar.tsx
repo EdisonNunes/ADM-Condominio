@@ -32,6 +32,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
   const { residentData, isAdmin, isSindico, logout: authLogout } = useAuth();
   const [branding, setBranding] = useState({ name: 'CondoDigital', logo: null as string | null });
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadReservationsCount, setUnreadReservationsCount] = useState(0);
+  const [unreadMuralCount, setUnreadMuralCount] = useState(0);
+  const [unreadOccurrencesCount, setUnreadOccurrencesCount] = useState(0);
+  const [unreadDocumentsCount, setUnreadDocumentsCount] = useState(0);
 
   useEffect(() => {
     const unsubscribeBranding = onSnapshot(doc(db, 'settings', 'config'), (docSnap) => {
@@ -52,25 +56,68 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
   useEffect(() => {
     if (!residentData) return;
 
-    if (isSindico || isAdmin) {
-      // Síndico/Admin sees sum of all unreadCountForSindico
-      const q = query(collection(db, 'chats'), where('unreadCountForSindico', '>', 0));
-      const unsubscribeChat = onSnapshot(q, (snapshot) => {
-        const total = snapshot.docs.reduce((acc, doc) => acc + (doc.data().unreadCountForSindico || 0), 0);
-        setUnreadCount(total);
-      });
-      return () => unsubscribeChat();
-    } else {
-      // Resident sees their own unreadCountForResident
-      const unsubscribeChat = onSnapshot(doc(db, 'chats', residentData.id), (docSnap) => {
-        if (docSnap.exists()) {
-          setUnreadCount(docSnap.data().unreadCountForResident || 0);
-        } else {
-          setUnreadCount(0);
-        }
-      });
-      return () => unsubscribeChat();
+    let unsubscribeChat: () => void = () => {};
+    let unsubscribeRes: () => void = () => {};
+    let unsubscribeMural: () => void = () => {};
+    let unsubscribeOcc: () => void = () => {};
+    let unsubscribeDoc: () => void = () => {};
+
+    try {
+      if (isSindico || isAdmin) {
+        // Síndico/Admin filters
+        const qChat = query(collection(db, 'chats'), where('unreadCountForSindico', '>', 0));
+        const qRes = query(collection(db, 'reservations'), where('isNewForSindico', '==', true));
+        const qOcc = query(collection(db, 'occurrences'), where('isNewForSindico', '==', true));
+
+        unsubscribeChat = onSnapshot(qChat, (snapshot) => {
+          const total = snapshot.docs.reduce((acc, doc) => acc + (doc.data().unreadCountForSindico || 0), 0);
+          setUnreadCount(total);
+        }, (err) => console.error("Sidebar Chat Error:", err));
+
+        unsubscribeRes = onSnapshot(qRes, (snapshot) => {
+          setUnreadReservationsCount(snapshot.size);
+        }, (err) => console.error("Sidebar Res Error:", err));
+
+        unsubscribeOcc = onSnapshot(qOcc, (snapshot) => {
+          setUnreadOccurrencesCount(snapshot.size);
+        }, (err) => console.error("Sidebar Occ Error:", err));
+      } else {
+        // Resident filters
+        unsubscribeChat = onSnapshot(doc(db, 'chats', residentData.id), (docSnap) => {
+          setUnreadCount(docSnap.data()?.unreadCountForResident || 0);
+        }, (err) => console.error("Sidebar Chat Res Error:", err));
+
+        const qRes = query(collection(db, 'reservations'), where('userId', '==', residentData.id), where('isNewForResident', '==', true));
+        unsubscribeRes = onSnapshot(qRes, (snapshot) => {
+          setUnreadReservationsCount(snapshot.size);
+        }, (err) => console.error("Sidebar Res Res Error:", err));
+
+        const qMural = query(collection(db, 'mural'), where('isNewForResident', '==', true));
+        unsubscribeMural = onSnapshot(qMural, (snapshot) => {
+          setUnreadMuralCount(snapshot.size);
+        }, (err) => console.error("Sidebar Mural Error:", err));
+
+        const qOcc = query(collection(db, 'occurrences'), where('userId', '==', residentData.id), where('isNewForResident', '==', true));
+        unsubscribeOcc = onSnapshot(qOcc, (snapshot) => {
+          setUnreadOccurrencesCount(snapshot.size);
+        }, (err) => console.error("Sidebar Occ Res Error:", err));
+
+        const qDoc = query(collection(db, 'documents'), where('isNewForResident', '==', true));
+        unsubscribeDoc = onSnapshot(qDoc, (snapshot) => {
+          setUnreadDocumentsCount(snapshot.size);
+        }, (err) => console.error("Sidebar Doc Error:", err));
+      }
+    } catch (error) {
+      console.error("Setup error in Sidebar useEffect:", error);
     }
+
+    return () => {
+      unsubscribeChat();
+      unsubscribeRes();
+      unsubscribeMural();
+      unsubscribeOcc();
+      unsubscribeDoc();
+    };
   }, [residentData, isSindico, isAdmin]);
 
   const allItems = [
@@ -164,12 +211,44 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
             {isOpen && (
               <span className="truncate">{item.label}</span>
             )}
+            {item.id === 'mural' && unreadMuralCount > 0 && (
+              <div className={cn(
+                "h-5 w-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white",
+                !isOpen ? "absolute top-2 right-2" : "ml-auto"
+              )}>
+                {unreadMuralCount > 9 ? '9+' : unreadMuralCount}
+              </div>
+            )}
             {item.id === 'chat' && unreadCount > 0 && (
               <div className={cn(
                 "h-5 w-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white",
                 !isOpen ? "absolute top-2 right-2" : "ml-auto"
               )}>
                 {unreadCount > 9 ? '9+' : unreadCount}
+              </div>
+            )}
+            {item.id === 'reservations' && unreadReservationsCount > 0 && (
+              <div className={cn(
+                "h-5 w-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white",
+                !isOpen ? "absolute top-2 right-2" : "ml-auto"
+              )}>
+                {unreadReservationsCount > 9 ? '9+' : unreadReservationsCount}
+              </div>
+            )}
+            {item.id === 'documents' && unreadDocumentsCount > 0 && (
+              <div className={cn(
+                "h-5 w-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white",
+                !isOpen ? "absolute top-2 right-2" : "ml-auto"
+              )}>
+                {unreadDocumentsCount > 9 ? '9+' : unreadDocumentsCount}
+              </div>
+            )}
+            {item.id === 'occurrences' && unreadOccurrencesCount > 0 && (
+              <div className={cn(
+                "h-5 w-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white",
+                !isOpen ? "absolute top-2 right-2" : "ml-auto"
+              )}>
+                {unreadOccurrencesCount > 9 ? '9+' : unreadOccurrencesCount}
               </div>
             )}
             {!isOpen && activeTab === item.id && (

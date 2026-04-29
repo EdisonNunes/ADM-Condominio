@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
 import { BookOpen, Shield, VolumeX, Car, Dog, Users, Trash2, Plus, Edit2, X } from 'lucide-react';
@@ -18,7 +18,7 @@ const CATEGORIES: { [key: string]: any } = {
 };
 
 export const RulesView: React.FC = () => {
-  const { isAdmin, isSindico } = useAuth();
+  const { isAdmin, isSindico, isEstablished, residentData } = useAuth();
   const isManagement = isAdmin || isSindico;
   const [rules, setRules] = useState<any[]>([]);
   const [isAdding, setIsAdding] = useState(false);
@@ -33,15 +33,44 @@ export const RulesView: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!residentData || !isEstablished || isManagement || rules.length === 0) return;
+
+    const clearNotifications = async () => {
+      const batch = writeBatch(db);
+      const unread = rules.filter(r => r.isNewForResident);
+      
+      if (unread.length > 0) {
+        unread.forEach(r => {
+          batch.update(doc(db, 'rules', r.id), { isNewForResident: false });
+        });
+        try {
+          await batch.commit();
+        } catch (err) {
+          console.error("Erro ao limpar notificações de regras:", err);
+        }
+      }
+    };
+
+    const timeout = setTimeout(clearNotifications, 2000);
+    return () => clearTimeout(timeout);
+  }, [residentData, isEstablished, isManagement, rules]);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isManagement) return;
     try {
       if (editingId) {
-        await updateDoc(doc(db, 'rules', editingId), form);
+        await updateDoc(doc(db, 'rules', editingId), {
+          ...form,
+          isNewForResident: true,
+        });
         alert("Regra atualizada com sucesso!");
       } else {
-        await addDoc(collection(db, 'rules'), form);
+        await addDoc(collection(db, 'rules'), {
+          ...form,
+          isNewForResident: true,
+        });
         alert("Regra adicionada com sucesso!");
       }
       closeForm();

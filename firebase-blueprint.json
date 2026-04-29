@@ -41,6 +41,8 @@
         "startTime": { "type": "string" },
         "endTime": { "type": "string" },
         "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled"] },
+        "isNewForSindico": { "type": "boolean" },
+        "isNewForResident": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "areaId", "userId", "date", "startTime", "endTime", "status"]
@@ -68,7 +70,8 @@
         "authorId": { "type": "string" },
         "authorName": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
-        "category": { "type": "string" }
+        "category": { "type": "string" },
+        "isNewForResident": { "type": "boolean" }
       },
       "required": ["id", "title", "content", "authorId", "createdAt"]
     },
@@ -85,7 +88,9 @@
         "description": { "type": "string" },
         "status": { "type": "string", "enum": ["reported", "in_progress", "resolved"] },
         "response": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isNewForSindico": { "type": "boolean" },
+        "isNewForResident": { "type": "boolean" }
       },
       "required": ["id", "userId", "title", "description", "status", "createdAt"]
     },
@@ -97,9 +102,25 @@
         "id": { "type": "string" },
         "title": { "type": "string" },
         "content": { "type": "string" },
-        "category": { "type": "string" }
+        "category": { "type": "string" },
+        "isNewForResident": { "type": "boolean" }
       },
       "required": ["id", "title", "content"]
+    },
+    "Document": {
+      "title": "Document",
+      "description": "Condominium official document",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "category": { "type": "string" },
+        "fileName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isNewForResident": { "type": "boolean" }
+      },
+      "required": ["id", "name", "url", "category", "createdAt"]
     },
     "ChatMessage": {
       "title": "Chat Message",
@@ -145,6 +166,10 @@
     "/rules/{id}": {
       "schema": "Rule",
       "description": "Condominium rules and bylaws"
+    },
+    "/documents/{id}": {
+      "schema": "Document",
+      "description": "Official documents indexed by ID"
     },
     "/chats/{chatId}/messages/{messageId}": {
       "schema": "ChatMessage",

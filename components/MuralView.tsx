@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
 import { Megaphone, Plus, Trash2, Calendar, User, X, Tag } from 'lucide-react';
@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export const MuralView: React.FC = () => {
-  const { residentData, isAdmin, isSindico } = useAuth();
+  const { residentData, isAdmin, isSindico, isEstablished } = useAuth();
   const isManagement = isAdmin || isSindico;
   const [notices, setNotices] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -26,6 +26,29 @@ export const MuralView: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!residentData || !isEstablished || isManagement || notices.length === 0) return;
+
+    const clearNotifications = async () => {
+      const batch = writeBatch(db);
+      const unread = notices.filter(n => n.isNewForResident);
+      
+      if (unread.length > 0) {
+        unread.forEach(n => {
+          batch.update(doc(db, 'mural', n.id), { isNewForResident: false });
+        });
+        try {
+          await batch.commit();
+        } catch (err) {
+          console.error("Erro ao limpar notificações do mural:", err);
+        }
+      }
+    };
+
+    const timeout = setTimeout(clearNotifications, 2000);
+    return () => clearTimeout(timeout);
+  }, [residentData, isEstablished, isManagement, notices]);
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!residentData || !isManagement) return;
@@ -37,6 +60,7 @@ export const MuralView: React.FC = () => {
         authorId: residentData.id,
         authorName: residentData.name || 'Administrador',
         createdAt: serverTimestamp(),
+        isNewForResident: true,
       });
       setIsModalOpen(false);
       setForm({ title: '', content: '', category: 'Geral' });

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, updateDoc, doc, writeBatch } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
 import { AlertCircle, Plus, Clock, CheckCircle2, MessageSquare, X, Filter } from 'lucide-react';
@@ -32,6 +32,44 @@ export const OccurrencesView: React.FC = () => {
     return () => unsubscribe();
   }, [residentData, isManagement, isEstablished]);
 
+  useEffect(() => {
+    if (!residentData || !isEstablished || occurrences.length === 0) return;
+
+    const clearNotifications = async () => {
+      const batch = writeBatch(db);
+      let hasChanges = false;
+
+      if (isManagement) {
+        const unread = occurrences.filter(o => o.isNewForSindico);
+        if (unread.length > 0) {
+          unread.forEach(o => {
+            batch.update(doc(db, 'occurrences', o.id), { isNewForSindico: false });
+          });
+          hasChanges = true;
+        }
+      } else {
+        const unread = occurrences.filter(o => o.isNewForResident);
+        if (unread.length > 0) {
+          unread.forEach(o => {
+            batch.update(doc(db, 'occurrences', o.id), { isNewForResident: false });
+          });
+          hasChanges = true;
+        }
+      }
+
+      if (hasChanges) {
+        try {
+          await batch.commit();
+        } catch (err) {
+          console.error("Erro ao limpar notificações de ocorrências:", err);
+        }
+      }
+    };
+
+    const timeout = setTimeout(clearNotifications, 2000);
+    return () => clearTimeout(timeout);
+  }, [residentData, isEstablished, isManagement, occurrences]);
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!residentData) return;
@@ -46,6 +84,8 @@ export const OccurrencesView: React.FC = () => {
         apartmentId: residentData.apartmentId,
         status: 'reported',
         createdAt: serverTimestamp(),
+        isNewForSindico: true,
+        isNewForResident: false,
       });
       setIsModalOpen(false);
       setForm({ title: '', description: '' });
@@ -63,6 +103,8 @@ export const OccurrencesView: React.FC = () => {
       await updateDoc(doc(db, 'occurrences', id), {
         response: adminResponse,
         status: 'resolved',
+        isNewForResident: true,
+        isNewForSindico: false,
       });
       setSelectedOccurrence(null);
       setAdminResponse('');

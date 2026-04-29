@@ -53,11 +53,30 @@ export const DashboardView: React.FC<{ setActiveTab: (tab: string) => void }> = 
     try {
       await updateDoc(doc(db, 'reservations', reservationId), {
         status: 'confirmed',
+        isNewForResident: true,
+        isNewForSindico: false,
         updatedAt: new Date()
       });
     } catch (err) {
       console.error("Error confirming reservation:", err);
       alert("Erro ao confirmar reserva.");
+    } finally {
+      setIsUpdating(null);
+    }
+  };
+
+  const handleDeclineReservation = async (reservationId: string) => {
+    setIsUpdating(reservationId);
+    try {
+      await updateDoc(doc(db, 'reservations', reservationId), {
+        status: 'cancelled',
+        isNewForResident: true,
+        isNewForSindico: false,
+        updatedAt: new Date()
+      });
+    } catch (err) {
+      console.error("Error declining reservation:", err);
+      alert("Erro ao recusar reserva.");
     } finally {
       setIsUpdating(null);
     }
@@ -138,17 +157,26 @@ export const DashboardView: React.FC<{ setActiveTab: (tab: string) => void }> = 
                     </div>
                     <div className="text-[10px] text-slate-500 mt-1 flex items-center justify-between font-medium">
                       <div className="flex items-center gap-1">
-                        <CalendarDays size={10} /> {res.date}
+                        <CalendarDays size={10} /> {res.date && typeof res.date === 'string' ? res.date.split('-').reverse().join('-') : '-'}
                       </div>
 
                       {isSindico && res.status === 'pending' && (
-                        <button
-                          disabled={isUpdating === res.id}
-                          onClick={() => handleConfirmReservation(res.id)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded-md text-[9px] font-bold transition-all disabled:opacity-50"
-                        >
-                          {isUpdating === res.id ? '...' : 'Confirmar'}
-                        </button>
+                        <div className="flex gap-1">
+                          <button
+                            disabled={isUpdating === res.id}
+                            onClick={() => handleConfirmReservation(res.id)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded-md text-[9px] font-bold transition-all disabled:opacity-50"
+                          >
+                            {isUpdating === res.id ? '...' : 'Confirmar'}
+                          </button>
+                          <button
+                            disabled={isUpdating === res.id}
+                            onClick={() => handleDeclineReservation(res.id)}
+                            className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 px-2 py-1 rounded-md text-[9px] font-bold transition-all disabled:opacity-50"
+                          >
+                            {isUpdating === res.id ? '...' : 'Recusar'}
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

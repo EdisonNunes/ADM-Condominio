@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, getDocs, doc, updateDoc, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, getDocs, doc, updateDoc, orderBy, writeBatch } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
@@ -26,8 +26,8 @@ export const ReservationsView: React.FC = () => {
   useEffect(() => {
     if (!residentData || !isEstablished) return;
     const q = isSindico 
-      ? query(collection(db, 'reservations'), orderBy('date', 'desc'))
-      : query(collection(db, 'reservations'), where('userId', '==', residentData.id), orderBy('date', 'desc'));
+      ? query(collection(db, 'reservations'), orderBy('date', 'asc'))
+      : query(collection(db, 'reservations'), where('userId', '==', residentData.id), orderBy('date', 'asc'));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setMyReservations(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -35,16 +35,74 @@ export const ReservationsView: React.FC = () => {
     return () => unsubscribe();
   }, [residentData, isEstablished, isSindico]);
 
+  useEffect(() => {
+    if (!residentData || !isEstablished || myReservations.length === 0) return;
+
+    const clearNotifications = async () => {
+      const batch = writeBatch(db);
+      let hasChanges = false;
+
+      if (isSindico) {
+        const unread = myReservations.filter(r => r.isNewForSindico);
+        if (unread.length > 0) {
+          unread.forEach(r => {
+            batch.update(doc(db, 'reservations', r.id), { isNewForSindico: false });
+          });
+          hasChanges = true;
+        }
+      } else {
+        const unread = myReservations.filter(r => r.isNewForResident);
+        if (unread.length > 0) {
+          unread.forEach(r => {
+            batch.update(doc(db, 'reservations', r.id), { isNewForResident: false });
+          });
+          hasChanges = true;
+        }
+      }
+
+      if (hasChanges) {
+        try {
+          await batch.commit();
+        } catch (err) {
+          console.error("Erro ao limpar notificações de reserva:", err);
+        }
+      }
+    };
+
+    // Delay a bit to avoid race conditions with onSnapshot
+    const timeout = setTimeout(clearNotifications, 2000);
+    return () => clearTimeout(timeout);
+  }, [residentData, isEstablished, isSindico, myReservations]);
+
   const handleConfirmReservation = async (reservationId: string) => {
     setIsUpdating(reservationId);
     try {
       await updateDoc(doc(db, 'reservations', reservationId), {
         status: 'confirmed',
+        isNewForResident: true,
+        isNewForSindico: false,
         updatedAt: new Date()
       });
     } catch (err) {
       console.error("Error confirming reservation:", err);
       alert("Erro ao confirmar reserva.");
+    } finally {
+      setIsUpdating(null);
+    }
+  };
+
+  const handleDeclineReservation = async (reservationId: string) => {
+    setIsUpdating(reservationId);
+    try {
+      await updateDoc(doc(db, 'reservations', reservationId), {
+        status: 'cancelled',
+        isNewForResident: true,
+        isNewForSindico: false,
+        updatedAt: new Date()
+      });
+    } catch (err) {
+      console.error("Error declining reservation:", err);
+      alert("Erro ao recusar reserva.");
     } finally {
       setIsUpdating(null);
     }
@@ -65,6 +123,8 @@ export const ReservationsView: React.FC = () => {
         startTime: '09:00', // Hardcoded for simplified example
         endTime: '22:00',
         status: 'pending',
+        isNewForSindico: true,
+        isNewForResident: false,
         createdAt: serverTimestamp(),
       });
       setActiveArea(null);
@@ -124,12 +184,25 @@ export const ReservationsView: React.FC = () => {
                   <div className="h-12 w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
                     <CheckCircle2 size={24} />
                   </div>
-                  <div>
-                    <h4 className="font-bold text-slate-800">{res.areaName}</h4>
-                    <p className="text-sm text-slate-500 flex items-center gap-1">
-                      <Calendar size={14} /> {res.date} • <Clock size={14} /> {res.startTime} - {res.endTime}
-                    </p>
-                    {isSindico && (
+                    <div>
+                      <h4 className="font-bold text-slate-800">{res.areaName}</h4>
+                      <div className="space-y-1">
+                        <p className="text-sm text-slate-500 flex items-center gap-1">
+                          <Calendar size={14} /> 
+                          {res.date ? res.date.split('-').reverse().join('-') : '-'}
+                        </p>
+                        <p className="text-[10px] text-slate-400 flex items-center gap-1 italic">
+                          <Clock size={10} /> Solicitado em: {res.createdAt ? (() => {
+                            try {
+                              const dateObj = res.createdAt.toDate ? res.createdAt.toDate() : new Date(res.createdAt);
+                              return format(dateObj, 'dd-MM-yyyy HH:mm');
+                            } catch (e) {
+                              return '-';
+                            }
+                          })() : '-'}
+                        </p>
+                      </div>
+                      {isSindico && (
                       <p className="text-xs font-bold text-blue-600 mt-1">
                         Apto {res.apartmentId} - {res.userName}
                       </p>
@@ -146,13 +219,22 @@ export const ReservationsView: React.FC = () => {
                   </span>
 
                   {isSindico && res.status === 'pending' && (
-                    <button
-                      disabled={isUpdating === res.id}
-                      onClick={() => handleConfirmReservation(res.id)}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      {isUpdating === res.id ? '...' : 'Confirmar'}
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        disabled={isUpdating === res.id}
+                        onClick={() => handleConfirmReservation(res.id)}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {isUpdating === res.id ? '...' : 'Confirmar'}
+                      </button>
+                      <button
+                        disabled={isUpdating === res.id}
+                        onClick={() => handleDeclineReservation(res.id)}
+                        className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-lg transition-colors disabled:opacity-50 border border-red-100"
+                      >
+                        {isUpdating === res.id ? '...' : 'Recusar'}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -195,6 +277,7 @@ export const ReservationsView: React.FC = () => {
                     <label className="text-sm font-bold text-slate-700">Data da Reserva</label>
                     <input 
                       type="date" 
+                      min={new Date().toISOString().split('T')[0]}
                       value={bookingDate}
                       onChange={(e) => setBookingDate(e.target.value)}
                       className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"

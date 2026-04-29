@@ -10,7 +10,8 @@ import {
   deleteDoc, 
   doc, 
   serverTimestamp,
-  orderBy 
+  orderBy,
+  writeBatch
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
@@ -28,7 +29,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export const DocumentsView: React.FC = () => {
-  const { isSindico, isAdmin } = useAuth();
+  const { isSindico, isAdmin, isEstablished, residentData } = useAuth();
   const [documents, setDocuments] = useState<any[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -83,6 +84,29 @@ export const DocumentsView: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!residentData || !isEstablished || isSindico || isAdmin || documents.length === 0) return;
+
+    const clearNotifications = async () => {
+      const batch = writeBatch(db);
+      const unread = documents.filter(d => d.isNewForResident);
+      
+      if (unread.length > 0) {
+        unread.forEach(d => {
+          batch.update(doc(db, 'documents', d.id), { isNewForResident: false });
+        });
+        try {
+          await batch.commit();
+        } catch (err) {
+          console.error("Erro ao limpar notificações de documentos:", err);
+        }
+      }
+    };
+
+    const timeout = setTimeout(clearNotifications, 2000);
+    return () => clearTimeout(timeout);
+  }, [residentData, isEstablished, isSindico, isAdmin, documents]);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.url) {
@@ -94,6 +118,7 @@ export const DocumentsView: React.FC = () => {
       await addDoc(collection(db, 'documents'), {
         ...form,
         createdAt: serverTimestamp(),
+        isNewForResident: true,
       });
       alert("Documento adicionado com sucesso!");
       setIsAdding(false);
